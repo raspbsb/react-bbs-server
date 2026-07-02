@@ -1,3 +1,4 @@
+const express = require("express");
 const cors = require("cors");
 const app = express();
 const mysql = require("mysql2");
@@ -38,8 +39,8 @@ app.post("/write", (req, res) => {
   console.log(req.body);
   const { title, name, content } = req.body;
 
-  const sqlQuery = "insert into board(title,content,writer) values(?,?,?);";
-  db.query(sqlQuery, [title, name, content], (err, result) => {
+  const sqlQuery = "insert into board (title,content,writer) values (?,?,?);";
+  db.query(sqlQuery, [title, content, name], (err, result) => {
     if (err) throw err;
     res.send(result);
   });
