@@ -4,6 +4,8 @@ const app = express();
 const mysql = require("mysql2");
 const port = 3000;
 const multer = require("multer");
+const fs = require("fs");
+const path = require("path");
 
 app.use(express.json()); // json -> object
 app.use(express.urlencoded({ extended: true })); // html form -> object
@@ -38,6 +40,17 @@ const db = mysql.createConnection({
 });
 
 db.connect();
+
+function deleteUploadedFile(filePath) {
+  if (!filePath) return;
+
+  const absolutePath = path.resolve(filePath);
+
+  //실제 서버에 있는지 확인
+  if (fs.existsSync(absolutePath)) {
+    fs.unlinkSync(absolutePath);
+  }
+}
 
 // 기본
 app.get("/", (req, res) => {
@@ -81,6 +94,7 @@ app.post("/write", upload.single("image"), (req, res) => {
   });
 });
 
+// 글수정
 app.post("/update", upload.single("image"), (req, res) => {
   console.log(req.body);
 
@@ -121,23 +135,33 @@ app.post("/update", upload.single("image"), (req, res) => {
   });
 });
 
+// 글삭제
 app.post("/delete", (req, res) => {
   console.log(req.body);
   const { id } = req.body;
 
-  const sqlQuery = `DELETE FROM board WHERE id=${id};`;
+  // 글 번호 삭제할 이미지의 경로 파악
+
+  db.query("SELECT image_path FROM board WHERE id=?", [id], (err, result) => {
+    if (err) throw err;
+    // console.log(result[0].image_path);
+    const existingImagePath = result[0] ? result[0].image_path : null;
+    deleteUploadedFile(existingImagePath);
+  });
+
+  const sqlQuery = "DELETE FROM board WHERE id=?";
   db.query(sqlQuery, [id], (err, result) => {
     if (err) throw err;
     res.send(result);
   });
 });
 
+// 목록 선택삭제
 app.post("/deleteselect", (req, res) => {
   console.log(req.body);
   const { boardIdList } = req.body;
 
   const sqlQuery = `DELETE FROM board WHERE id in (${boardIdList});`;
-
   db.query(sqlQuery, (err, result) => {
     if (err) throw err;
     res.send(result);
