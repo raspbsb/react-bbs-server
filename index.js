@@ -17,6 +17,7 @@ let corsOptions = {
 
 app.use(cors(corsOptions));
 
+// 파일 저장소 연결 (멀터)
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
     cb(null, "uploads/");
@@ -31,6 +32,7 @@ const storage = multer.diskStorage({
 
 const upload = multer({ storage: storage });
 
+// 로그인 정보
 const db = mysql.createConnection({
   host: "localhost",
   user: "root",
@@ -41,6 +43,7 @@ const db = mysql.createConnection({
 
 db.connect();
 
+// 파일 경로에서 남은 실제 파일 삭제
 function deleteUploadedFile(filePath) {
   if (!filePath) return;
 
@@ -112,6 +115,13 @@ app.post("/update", upload.single("image"), (req, res) => {
   if (shouldRemoveImage && !imagePath) {
     sqlQuery = "UPDATE board SET writer=?, title=?, content=?, image_path=NULL WHERE id=?;";
     params = [writer, title, content, id];
+
+    db.query("SELECT image_path FROM board WHERE id=?", [id], (err, result) => {
+      if (err) throw err;
+      // console.log(result[0].image_path);
+      const existingImagePath = result[0] ? result[0].image_path : null;
+      deleteUploadedFile(existingImagePath);
+    });
   }
   // 이미지 삭제 요청 X + 새 이미지 O -> 기존 이미지 유지, image_path에 새 이미지 업데이트
   else if (!shouldRemoveImage && imagePath) {
@@ -127,6 +137,13 @@ app.post("/update", upload.single("image"), (req, res) => {
   else if (shouldRemoveImage && imagePath) {
     sqlQuery = "UPDATE board SET writer=?, title=?, content=?, image_path=? WHERE id=?";
     params = [writer, title, content, imagePath, id];
+
+    db.query("SELECT image_path FROM board WHERE id=?", [id], (err, result) => {
+      if (err) throw err;
+      // console.log(result[0].image_path);
+      const existingImagePath = result[0] ? result[0].image_path : null;
+      deleteUploadedFile(existingImagePath);
+    });
   }
 
   db.query(sqlQuery, params, (err, result) => {
@@ -141,7 +158,7 @@ app.post("/delete", (req, res) => {
   const { id } = req.body;
 
   // 글 번호 삭제할 이미지의 경로 파악
-
+  // 파일 제거 요청
   db.query("SELECT image_path FROM board WHERE id=?", [id], (err, result) => {
     if (err) throw err;
     // console.log(result[0].image_path);
@@ -161,6 +178,17 @@ app.post("/deleteselect", (req, res) => {
   console.log(req.body);
   const { boardIdList } = req.body;
 
+  // 서버에서 이미지 여러개를 삭제
+  db.query(`SELECT image_path FROM board WHERE id in (${boardIdList})`, (err, result) => {
+    if (err) throw err;
+    if (result && result.length > 0) {
+      result.forEach(item => {
+        deleteUploadedFile(item.image_path);
+      });
+    }
+  });
+
+  // DB서버 테이블에서 글 여러개를 삭제
   const sqlQuery = `DELETE FROM board WHERE id in (${boardIdList});`;
   db.query(sqlQuery, (err, result) => {
     if (err) throw err;
