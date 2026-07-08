@@ -36,7 +36,7 @@ const upload = multer({ storage: storage });
 // 로그인 정보
 const db = mysql.createConnection({
   host: "localhost",
-  user: "root",
+  user: "user_bbs",
   password: "sqlqns",
   // db 이름 (테이블 이름 X)
   database: "bbs",
